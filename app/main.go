@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+
+	"github.com/codecrafters-io/http-server-starter-go/server"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
@@ -15,16 +17,27 @@ func main() {
 	fmt.Println("Logs from your program will appear here!")
 
 	// Uncomment this block to pass the first stage
+	httpServer := server.NewServer(4221)
 
-	l, err := net.Listen("tcp", "0.0.0.0:4221")
+	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", httpServer.Port))
+
 	if err != nil {
-		fmt.Println("Failed to bind to port 4221")
 		os.Exit(1)
 	}
 
-	_, err = l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			os.Exit(1)
+		}
+
+		if err != nil {
+			fmt.Println("Err : ", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Ok handling connection")
+		go httpServer.HandleConnection(conn)
 	}
+
 }

@@ -87,6 +87,8 @@ func (s *HttpServer) HandleConnection(conn net.Conn) {
 	switch verb {
 	case "GET":
 		resp = s.getHandler(urlPath, headers, body)
+	case "POST":
+		resp = s.postHandler(urlPath, headers, body)
 	default:
 		resp = []byte("HTTP/1.1 405 Method Not Allowed\r\n\r\n")
 	}
@@ -149,6 +151,37 @@ func (s *HttpServer) getHandler(urlPath string, headers map[string]string, body 
 
 	} else {
 		r = fmt.Sprintf("HTTP/%s 404 Not Found\r\n\r\n", s.Version)
+	}
+
+	return []byte(r)
+}
+
+func (s *HttpServer) postHandler(urlPath string, headers map[string]string, body []byte) []byte {
+
+	var r string
+
+	fmt.Println("urlPath :: ", urlPath)
+	if strings.HasPrefix(urlPath, "/files") {
+		f := strings.Split(urlPath, "/files")
+
+		var path string
+
+		for _, i := range f {
+			if len(strings.Trim(i, "/ ")) > 0 {
+				path += strings.Trim(i, "/ ")
+			}
+
+			err := os.WriteFile(fmt.Sprintf("%s/%s", s.dir, path), body, 0644)
+			if err != nil {
+				fmt.Println("file error")
+				r = fmt.Sprintf("HTTP/%s 400 Bad Request\r\n\r\n", s.Version)
+			} else {
+				r = fmt.Sprintf("HTTP/%s 201 Created\r\n\r\n", s.Version)
+			}
+
+		}
+	} else {
+		r = fmt.Sprintf("HTTP/%s 400 Bad Request\r\n\r\n", s.Version)
 	}
 
 	return []byte(r)

@@ -3,8 +3,9 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
-	"os"
+	"strconv"
 	"strings"
 
 	"github.com/codecrafters-io/http-server-starter-go/utils"
@@ -23,39 +24,74 @@ func NewServer(port uint) *HttpServer {
 }
 
 func (s *HttpServer) HandleConnection(conn net.Conn) {
+	defer conn.Close()
 
-	var reader = bufio.NewReader(conn)
+	reader := bufio.NewReader(conn)
 
-	data, err := reader.ReadString('\n')
-
+	// Step 1: Read the request line
+	requestLine, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Println("Error in reeading data : ", err)
-		os.Exit(1)
+		fmt.Println("[ERROR] Failed to read request line:", err)
+		return
 	}
+	fmt.Println("[DEBUG] Request line:", requestLine)
 
-	verb, urlPath, err := utils.BreakRequestData(data)
-
+	verb, urlPath, err := utils.BreakRequestData(requestLine)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	var resp []byte
-
-	fmt.Println("Request recieved :: ", verb)
-	switch verb {
-	case "GET":
-		resp = s.getHandler(urlPath)
-	default:
-		fmt.Printf("%s not supported\n", verb)
+		fmt.Println("[ERROR] Malformed request line:", err)
 		return
 	}
 
-	conn.Write(resp)
+	// Step 2: Read headers
+	headers := make(map[string]string)
+	for {
+		line, err := reader.ReadString('\n')
+		fmt.Println("[DEBUG] Header line:", line)
+		if err != nil {
+			fmt.Println("[ERROR] Failed to read header:", err)
+			return
+		}
+		if line == "\r\n" {
+			break // End of headers
+		}
 
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 {
+			headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		}
+		fmt.Println("[DEBUG] Headers:", headers)
+	}
+
+	// Step 3: Read body (if present)
+	var body []byte
+	if cl, ok := headers["Content-Length"]; ok {
+		length, err := strconv.Atoi(cl)
+		if err != nil {
+			fmt.Println("[ERROR] Invalid Content-Length:", err)
+			return
+		}
+		body = make([]byte, length)
+		_, err = io.ReadFull(reader, body)
+		if err != nil {
+			fmt.Println("[ERROR] Failed to read body:", err)
+			return
+		}
+		fmt.Println("[DEBUG] Body:", string(body))
+	}
+
+	// Step 4: Handle the request
+	var resp []byte
+	switch verb {
+	case "GET":
+		resp = s.getHandler(urlPath, headers, body)
+	default:
+		resp = []byte("HTTP/1.1 405 Method Not Allowed\r\n\r\n")
+	}
+
+	conn.Write(resp)
 }
 
-func (s *HttpServer) getHandler(urlPath string) []byte {
+func (s *HttpServer) getHandler(urlPath string, headers map[string]string, body []byte) []byte {
 
 	var r string
 
@@ -77,6 +113,15 @@ func (s *HttpServer) getHandler(urlPath string) []byte {
 		}
 
 		r = fmt.Sprintf("HTTP/%s 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", s.Version, len(val.String()), val.String())
+
+	} else if strings.HasPrefix(urlPath, "/user-agent") {
+		agent, ok := headers["User-Agent"]
+		if !ok {
+			r = "HTTP/1.1 400 Bad Request\r\n\r\n%"
+		} else {
+			r = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(agent), agent)
+		}
+
 	} else {
 		r = fmt.Sprintf("HTTP/%s 404 Not Found\r\n\r\n", s.Version)
 	}

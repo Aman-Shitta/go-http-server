@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -16,8 +17,12 @@ func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
+	dir := flag.String("directory", "", "directrory name")
+
+	flag.Parse()
+
 	// Uncomment this block to pass the first stage
-	httpServer := server.NewServer(4221)
+	httpServer := server.NewServer(4221, *dir)
 
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", httpServer.Port))
 

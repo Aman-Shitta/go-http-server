@@ -102,11 +102,11 @@ func (s *HttpServer) getHandler(urlPath string, headers map[string]string, body 
 
 	fmt.Println("urlPath :: ", urlPath)
 	if urlPath == "/" {
-		r = fmt.Sprintf("HTTP/%s 200 OK\r\n\r\n", s.Version)
+		r = utils.RespBody(headers, 200, "", "text/plain")
+		// r = fmt.Sprintf("HTTP/%s 200 OK\r\n\r\n", s.Version)
 
 	} else if strings.HasPrefix(urlPath, "/echo") {
 		echo := strings.Split(urlPath, "/echo")
-		fmt.Println("Echo :: ", echo)
 
 		var val strings.Builder
 
@@ -114,17 +114,19 @@ func (s *HttpServer) getHandler(urlPath string, headers map[string]string, body 
 			if len(strings.Trim(i, "/ ")) > 0 {
 				val.WriteString(strings.Trim(i, "/ "))
 			}
-
 		}
 
-		r = fmt.Sprintf("HTTP/%s 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", s.Version, len(val.String()), val.String())
+		r = utils.RespBody(headers, 200, val.String(), "text/plain")
+		// r = fmt.Sprintf("HTTP/%s 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", s.Version, len(val.String()), val.String())
 
 	} else if strings.HasPrefix(urlPath, "/user-agent") {
 		agent, ok := headers["User-Agent"]
 		if !ok {
-			r = "HTTP/1.1 400 Bad Request\r\n\r\n%"
+			r = utils.RespBody(headers, 400, "", "text/plain")
+			// r = "HTTP/1.1 400 Bad Request\r\n\r\n%"
 		} else {
-			r = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(agent), agent)
+			r = utils.RespBody(headers, 200, agent, "text/plain")
+			// r = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(agent), agent)
 		}
 
 	} else if strings.HasPrefix(urlPath, "/files") {
@@ -141,16 +143,19 @@ func (s *HttpServer) getHandler(urlPath string, headers map[string]string, body 
 			d, err := os.ReadFile(fmt.Sprintf("%s/%s", s.dir, path))
 			if err != nil {
 				fmt.Println("file error")
-				r = fmt.Sprintf("HTTP/%s 404 Not Found\r\n\r\n", s.Version)
+				r = utils.RespBody(headers, 404, "", "text/plain")
+				// r = fmt.Sprintf("HTTP/%s 404 Not Found\r\n\r\n", s.Version)
 			} else {
-				r = fmt.Sprintf("HTTP/%s 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", s.Version, len(d), d)
+				r = utils.RespBody(headers, 200, string(d), "application/octet-stream")
+				// r = fmt.Sprintf("HTTP/%s 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", s.Version, len(d), d)
 				// r = fmt.Sprintf("HTTP/%s 404 %s\r\n\r\n", s.Version, d)
 			}
 
 		}
 
 	} else {
-		r = fmt.Sprintf("HTTP/%s 404 Not Found\r\n\r\n", s.Version)
+		r = utils.RespBody(headers, 404, "", "text/plain")
+		// r = fmt.Sprintf("HTTP/%s 404 Not Found\r\n\r\n", s.Version)
 	}
 
 	return []byte(r)
@@ -160,7 +165,6 @@ func (s *HttpServer) postHandler(urlPath string, headers map[string]string, body
 
 	var r string
 
-	fmt.Println("urlPath :: ", urlPath)
 	if strings.HasPrefix(urlPath, "/files") {
 		f := strings.Split(urlPath, "/files")
 

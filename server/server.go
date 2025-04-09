@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 
@@ -14,12 +15,14 @@ import (
 type HttpServer struct {
 	Port    uint
 	Version string
+	dir     string
 }
 
-func NewServer(port uint) *HttpServer {
+func NewServer(port uint, dir string) *HttpServer {
 	return &HttpServer{
 		Port:    port,
 		Version: "1.1",
+		dir:     dir,
 	}
 }
 
@@ -120,6 +123,28 @@ func (s *HttpServer) getHandler(urlPath string, headers map[string]string, body 
 			r = "HTTP/1.1 400 Bad Request\r\n\r\n%"
 		} else {
 			r = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(agent), agent)
+		}
+
+	} else if strings.HasPrefix(urlPath, "/files") {
+		file := strings.Split(urlPath, "/files")
+		fmt.Println("file :: ", file)
+
+		var path string
+
+		for _, i := range file {
+			if len(strings.Trim(i, "/ ")) > 0 {
+				path += strings.Trim(i, "/ ")
+			}
+
+			d, err := os.ReadFile(fmt.Sprintf("%s/%s", s.dir, path))
+			if err != nil {
+				fmt.Println("file error")
+				r = fmt.Sprintf("HTTP/%s 404 Not Found\r\n\r\n", s.Version)
+			} else {
+				r = fmt.Sprintf("HTTP/%s 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", s.Version, len(d), d)
+				// r = fmt.Sprintf("HTTP/%s 404 %s\r\n\r\n", s.Version, d)
+			}
+
 		}
 
 	} else {

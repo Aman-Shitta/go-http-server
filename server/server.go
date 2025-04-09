@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/codecrafters-io/http-server-starter-go/utils"
 )
@@ -58,8 +59,24 @@ func (s *HttpServer) getHandler(urlPath string) []byte {
 
 	var r string
 
+	fmt.Println("urlPath :: ", urlPath)
 	if urlPath == "/" {
 		r = fmt.Sprintf("HTTP/%s 200 OK\r\n\r\n", s.Version)
+
+	} else if strings.HasPrefix(urlPath, "/echo") {
+		echo := strings.Split(urlPath, "/echo")
+		fmt.Println("Echo :: ", echo)
+
+		var val strings.Builder
+
+		for _, i := range echo {
+			if len(strings.Trim(i, "/ ")) > 0 {
+				val.WriteString(strings.Trim(i, "/ "))
+			}
+
+		}
+
+		r = fmt.Sprintf("HTTP/%s 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", s.Version, len(val.String()), val.String())
 	} else {
 		r = fmt.Sprintf("HTTP/%s 404 Not Found\r\n\r\n", s.Version)
 	}

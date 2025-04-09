@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"slices"
 	"strings"
@@ -45,14 +47,23 @@ func RespBody(headers map[string]string, statusCode int, content string, ctype s
 		if len(encodings) > 0 {
 			if slices.Contains(encodings, "gzip") {
 				encoding = "gzip"
+
+				var buf bytes.Buffer
+				zw := gzip.NewWriter(&buf)
+
+				zw.Write([]byte(content))
+				zw.Close()
+
+				compressed := buf.Bytes()
+
 				return fmt.Sprintf(
 					"HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Encoding: %s\r\nContent-Length: %d\r\n\r\n%s",
 					statusCode,
 					statusText,
 					ctype,
 					encoding,
-					len(content),
-					content,
+					len(compressed),
+					compressed,
 				)
 			}
 		}
